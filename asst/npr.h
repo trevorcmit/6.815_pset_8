@@ -18,7 +18,7 @@
 using namespace std;
 
 Image brush(const Image &im, int x, int y, vector<float> color, const Image &texture);
-Image singleScalePaint(const Image &im, const Image &texture, int size=10, int N=10000, float noise=0.3);
+Image singleScalePaint(const Image &im, const Image &out, const Image &texture, int size=10, int N=10000, float noise=0.3);
 Image singleScalePaintImportance(const Image &im, const Image &importance, const Image &out, const Image &texture, 
 			int size=10, int N=10000, float noise=0.3);
 
