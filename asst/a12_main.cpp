@@ -21,13 +21,17 @@ void test_brush_singleScalePaint() {
   Image test("./Input/villeperdue.png");
   Image brush_("./Input/brush.png");
 
-  Image blank(test.width(), test.height(), test.channels());
-  vector<float> red = {1.0, 0.0, 0.0};
-  Image brush_test = brush(blank, 300, 300, red, brush_);
+  Image blank(1000, 1000, 3);
+  vector<float> red = {1.0f, 0.0f, 0.0f};
+  Image brush_test = brush(blank, 400, 400, red, brush_);
   brush_test.write("./Output/brush_test.png");
 
-  Image ssp_test = singleScalePaint(test, test, brush_, 10000);
+  Image ssp_test = singleScalePaint(test, test, brush_, 10, 100000);
   ssp_test.write("./Output/singleScalePaint_test.png");
+}
+
+void test_singleScalePaintImportance() {
+  
 }
 
 // This is a way for you to test your functions.

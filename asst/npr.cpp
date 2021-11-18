@@ -16,6 +16,7 @@ using namespace std;
 Image brush(const Image &im, int x, int y, vector<float> color, const Image &texture) {
 	// Draws a brushstroke defined by texture and color at (x,y) in im
 	// // --------- HANDOUT  PS12 ------------------------------
+	// cout << "Input image dimensions" << im.width() << " " << im.height() << endl;
 	Image output = im;
 	if (((x < texture.width() / 2) || (x > im.width() - texture.width() / 2)) ||
 	    ((y < texture.height() / 2) || (y > im.height() - texture.height() / 2))) {
@@ -28,9 +29,10 @@ Image brush(const Image &im, int x, int y, vector<float> color, const Image &tex
 		int j = 0;
 		for (int h = start_y; h < start_y + texture.height(); h++) {    // Iterate and make linear combination of
 			int i = 0;                                                  // original and texture image with new colors
-			for (int w = start_x; h < start_x + texture.width(); h++) {
+			for (int w = start_x; w < start_x + texture.width(); w++) {
 				for (int c = 0; c < 3; c++) {
-					output(w, h, c) = im(w, h, c) * (1 - texture(i, j, c)) + color.at(c) * texture(i, j, c);
+					output(w, h, c) = im.smartAccessor(w, h, c) * 
+					(1 - texture.smartAccessor(i, j, c)) + color.at(c) * texture.smartAccessor(i, j, c);
 				}
 				i += 1;
 			}
@@ -43,10 +45,15 @@ Image brush(const Image &im, int x, int y, vector<float> color, const Image &tex
 Image singleScalePaint(const Image &im, const Image &out, const Image &texture, int size, int N, float noise) {
 	// Create painted rendering by splatting brushstrokes at N random locations in your output image
 	// // --------- HANDOUT  PS12 ------------------------------
-	Image output(out.width(), out.height(), out.channels());
+	Image output(im.width(), im.height(), im.channels());
 	
-	float k = pow(size, 2) / texture.width() * texture.height();
+	float k = static_cast<float>(size) / static_cast<float>(texture.width());
+
+	cout << "Calculated size of k = " << k << endl;
+
 	Image texture_s = scaleLin(texture, k);
+
+	cout << "Finished scaling in singleScalePaint" << endl;
 
 	for (int n = 0; n < N; n++) {
 		int random_x = rand() % output.width();
@@ -56,7 +63,7 @@ Image singleScalePaint(const Image &im, const Image &out, const Image &texture, 
 					           im(random_x, random_y, 1) * noise,
 		                       im(random_x, random_y, 2) * noise,
 		};
-		output = brush(im, random_x, random_y, color, texture_s);
+		output = brush(output, random_x, random_y, color, texture_s);
 	}
 	return output;
 }
@@ -66,6 +73,10 @@ Image singleScalePaintImportance(const Image &im, const Image &importance,
 	// Create painted rendering but vary the density of the strokes according to
 	// an importance map
 	// // --------- HANDOUT  PS12 ------------------------------
+	int num_brush = 0;
+	while (num_brush < N) {
+		
+	}
 	return Image(1,1,1);
 }
 
