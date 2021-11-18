@@ -34,7 +34,7 @@ Image brush(const Image &im, int x, int y, vector<float> color, const Image &tex
 					output(w, h, c) = im.smartAccessor(w, h, c) * 
 					(1 - texture.smartAccessor(i, j, c)) + color.at(c) * texture.smartAccessor(i, j, c);
 				}
-				i += 1;
+				i += 1; // Iterate i,j values as indices for texture image
 			}
 			j += 1;
 		}
@@ -45,52 +45,70 @@ Image brush(const Image &im, int x, int y, vector<float> color, const Image &tex
 Image singleScalePaint(const Image &im, const Image &out, const Image &texture, int size, int N, float noise) {
 	// Create painted rendering by splatting brushstrokes at N random locations in your output image
 	// // --------- HANDOUT  PS12 ------------------------------
-	Image output(im.width(), im.height(), im.channels());
-	
-	float k = static_cast<float>(size) / static_cast<float>(texture.width());
-
-	cout << "Calculated size of k = " << k << endl;
-
-	Image texture_s = scaleLin(texture, k);
-
-	cout << "Finished scaling in singleScalePaint" << endl;
+	Image output = out;
+	float k = static_cast<float>(size) / static_cast<float>(texture.width()); // Static cast to get float types
+	Image texture_s = scaleLin(texture, k); // Scale brush by size
 
 	for (int n = 0; n < N; n++) {
-		int random_x = rand() % output.width();
+		int random_x = rand() % output.width(); // Use modulo on rand to get random coordinates for brush strokes
 		int random_y = rand() % output.height();
 		float noise = 1 - noise / (2 + noise * rand());
-		vector<float> color = {im(random_x, random_y, 0) * noise,
+		vector<float> color = {im(random_x, random_y, 0) * noise, // Make color vector based on original image
 					           im(random_x, random_y, 1) * noise,
 		                       im(random_x, random_y, 2) * noise,
 		};
-		output = brush(output, random_x, random_y, color, texture_s);
+		output = brush(output, random_x, random_y, color, texture_s); // Repeated brush cycles and replace output
 	}
-	return output;
+	return output; // Return output image that has been repeatedly brush-stroked
 }
 
 Image singleScalePaintImportance(const Image &im, const Image &importance,
 						const Image &out, const Image &texture, int size, int N, float noise) {
-	// Create painted rendering but vary the density of the strokes according to
-	// an importance map
+	// Create painted rendering but vary the density of the strokes according to an importance map
 	// // --------- HANDOUT  PS12 ------------------------------
+	Image output = out;
+	float k = static_cast<float>(size) / static_cast<float>(texture.width()); // Static cast to get float types
+	Image texture_s = scaleLin(texture, k); // Scale brush by size
+
 	int num_brush = 0;
 	while (num_brush < N) {
-		
+		int random_x = rand() % output.width();  // Get random coordinates for brush stroke
+		int random_y = rand() % output.height();
+
+		float prob = static_cast<float>(rand() % 100) / 100.0f; // Get probability 
+		if (prob < importance(random_x, random_y, 0)) {
+			float noise = 1 - noise / (2 + noise * rand());
+			vector<float> color = {im(random_x, random_y, 0) * noise, // Make color vector based on original image
+					               im(random_x, random_y, 1) * noise,
+		                           im(random_x, random_y, 2) * noise,
+			};
+			output = brush(output, random_x, random_y, color, texture_s); // Repeated brush cycles and replace output
+			num_brush += 1;
+		}
 	}
-	return Image(1,1,1);
+	return output;
 }
 
 Image sharpnessMap(const Image &im, float sigma) {
 	// Calculate sharpness mask 
 	// // --------- HANDOUT  PS12 ------------------------------
-	return Image(1,1,1);
+	vector<Image> LC = lumiChromi(im);                                  // Get luminance and chrominance of image
+	Image blur_lumi = gaussianBlur_separable(LC.at(0), sigma);          // Apply Gaussian blur
+	Image high_freq = LC.at(0) - blur_lumi;                             // Subtract to get high frequency
+	Image high_freq_sq = high_freq * high_freq;                         // Square the high frequency
+	Image blur_hf_sq = gaussianBlur_separable(high_freq_sq, 4 * sigma); // Apply second Gaussian blur
+	Image sharpness_map = blur_hf_sq / blur_hf_sq.max();                // Divide by maximum
+	return sharpness_map;
 }
 
 Image painterly(const Image &im, const Image &texture, int N, int size, int noise) {
-	// Create painterly rendering using a first layer of coarse strokes followed
-	// by smaller strokes in high detail areas
+	// Create painterly rendering using a first layer of coarse strokes followed by smaller strokes in high detail areas
 	// // --------- HANDOUT  PS12 ------------------------------
-	return Image(1,1,1);
+	Image output(im.width(), im.height(), im.channels());
+	Image first_pass = singleScalePaint(im, output, texture, size, N, noise);
+	Image importance = sharpnessMap(im);
+	Image second_pass = singleScalePaintImportance(im, importance, first_pass, texture, size, N, noise);
+	return second_pass;
 }
 
 Image computeTensor(const Image &im, float sigmaG, float factorSigma) {
