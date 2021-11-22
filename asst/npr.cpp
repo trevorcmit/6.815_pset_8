@@ -23,8 +23,8 @@ Image brush(const Image &im, int x, int y, vector<float> color, const Image &tex
 		return output; // Return input image if X and Y boundary conditions are not satisfied
 	}
 	else {
-		int start_x = x - floor(texture.width() / 2); // Initialize location of pixel iteration
-		int start_y = y - floor(texture.height() / 2);
+		int start_x = x - round(texture.width() / 2); // Initialize location of pixel iteration
+		int start_y = y - round(texture.height() / 2);
 
 		int j = 0;
 		for (int h = start_y; h < start_y + texture.height(); h++) {    // Iterate and make linear combination of
@@ -41,6 +41,7 @@ Image brush(const Image &im, int x, int y, vector<float> color, const Image &tex
 	}
 	return output;
 }
+
 
 Image singleScalePaint(const Image &im, const Image &out, const Image &texture, int size, int N, float noise) {
 	// Create painted rendering by splatting brushstrokes at N random locations in your output image
@@ -61,6 +62,7 @@ Image singleScalePaint(const Image &im, const Image &out, const Image &texture, 
 	}
 	return output; // Return output image that has been repeatedly brush-stroked
 }
+
 
 Image singleScalePaintImportance(const Image &im, const Image &importance,
 						const Image &out, const Image &texture, int size, int N, float noise) {
@@ -89,6 +91,7 @@ Image singleScalePaintImportance(const Image &im, const Image &importance,
 	return output;
 }
 
+
 Image sharpnessMap(const Image &im, float sigma) {
 	// Calculate sharpness mask 
 	// // --------- HANDOUT  PS12 ------------------------------
@@ -101,53 +104,128 @@ Image sharpnessMap(const Image &im, float sigma) {
 	return sharpness_map;
 }
 
+
 Image painterly(const Image &im, const Image &texture, int N, int size, int noise) {
 	// Create painterly rendering using a first layer of coarse strokes followed by smaller strokes in high detail areas
 	// // --------- HANDOUT  PS12 ------------------------------
 	Image output(im.width(), im.height(), im.channels());
 	Image first_pass = singleScalePaint(im, output, texture, size, N, noise);
 	Image importance = sharpnessMap(im);
-	Image second_pass = singleScalePaintImportance(im, importance, first_pass, texture, size, N, noise);
+	Image second_pass = singleScalePaintImportance(im, importance, first_pass, texture, 10, N, noise);
 	return second_pass;
 }
 
+
+Image gradientX(const Image &im, bool clamp) {
+  Filter sobelX(3, 3);
+  sobelX(0, 0) = -1.0;
+  sobelX(1, 0) = 0.0;
+  sobelX(2, 0) = 1.0;
+  sobelX(0, 1) = -2.0;
+  sobelX(1, 1) = 0.0;
+  sobelX(2, 1) = 2.0;
+  sobelX(0, 2) = -1.0;
+  sobelX(1, 2) = 0.0;
+  sobelX(2, 2) = 1.0;
+
+  Image imSobelX = sobelX.convolve(im, clamp);
+  return imSobelX;
+}
+
+
+Image gradientY(const Image &im, bool clamp) {
+  // sobel filtering in y direction
+  Filter sobelY(3, 3);
+  sobelY(0, 0) = -1.0;
+  sobelY(1, 0) = -2.0;
+  sobelY(2, 0) = -1.0;
+  sobelY(0, 1) = 0.0;
+  sobelY(1, 1) = 0.0;
+  sobelY(2, 1) = 0.0;
+  sobelY(0, 2) = 1.0;
+  sobelY(1, 2) = 2.0;
+  sobelY(2, 2) = 1.0;
+
+  Image imSobelY = sobelY.convolve(im, clamp);
+  return imSobelY;
+}
+
+
 Image computeTensor(const Image &im, float sigmaG, float factorSigma) {
  	// Compute xx/xy/yy Tensor of an image. (stored in that order)
- 	// // --------- HANDOUT  PS07 ------------------------------
- 	return Image(1,1,1);
+ 	// //\\ --------- HANDOUT  PS07 ------------------------------
+ 	vector<Image> lumi_chromi = lumiChromi(im); // Get luminance/chrominance of input image
+  	Image blur_lumi = gaussianBlur_separable(lumi_chromi.at(0), sigmaG); // Do 2D Gaussian Blue
+  	Image blur_lumi_gradX = gradientX(blur_lumi, true);
+	Image blur_lumi_gradY = gradientY(blur_lumi, true); // Gradients in each direction
+
+  	Image tensor(im.width(), im.height(), 3); // Setup output 3 channel image
+  	for (int h = 0; h < im.height(); h++) {
+    	for (int w = 0; w < im.width(); w++) {
+      		tensor(w, h, 0) = pow(blur_lumi_gradX(w, h, 0), 2);                    // I_x^2
+      		tensor(w, h, 1) = blur_lumi_gradX(w, h, 0) * blur_lumi_gradY(w, h, 0); // I_x * I_y
+      		tensor(w, h, 2) = pow(blur_lumi_gradY(w, h, 0), 2);                    // I_y^2
+    	}
+  	}
+  	return gaussianBlur_separable(tensor, sigmaG * factorSigma); // Apply weighting function as a Gaussian
 }
 
 
 Image testAngle(const Image &im, float sigmaG, float factor) {
-	// Extracts orientation of features in im. Angles should be mapped
-	// to [0,1]
-	// // --------- HANDOUT  PS12 ------------------------------
-    return Image(1,1,1);
+	// Extracts orientation of features in im. Angles should be mapped to [0,1]
+	// --------- HANDOUT  PS12 ------------------------------
+	Image tensor = computeTensor(im, sigmaG, factor);     // Call compute tensor from the previous PSET
+	Image output(im.width(), im.height(), im.channels());
 
+	for (int h = 0; h < im.height(); h++) {    // Iterate over all pixels to get min. angles for each one
+    	for (int w = 0; w < im.width(); w++) {
+			Matrix I(2, 2);
+			I << tensor(w, h, 0), tensor(w, h, 1), tensor(w, h, 1), tensor(w, h, 2); // Fill input for eigensolver
+			Eigen::EigenSolver<Matrix> eigensolver;                                  // Solve matrix
+			eigensolver.compute(I);
+			Matrix eigenvectors = eigensolver.eigenvectors().real();                 // Get real part of eigenvectors
+			float angle1 = atan2(eigenvectors(0, 0), eigenvectors(1, 0));            // Compute angle with both vectors
+			float angle2 = atan2(eigenvectors(0, 1), eigenvectors(1, 1));
+
+			if (abs(angle1) < abs(angle2)) {                                         // Get min angle for all channels
+				for (int c = 0; c < output.channels(); c++) { 
+					output(w, h, c) = (angle1 + 3.14159265f) / (2 * 3.14159265f);    // Scale [0,2pi] to [0,1]
+				}
+			}
+			else {
+				for (int c = 0; c < output.channels(); c++) { 
+					output(w, h, c) = (angle2 + 3.14159265f) / (2 * 3.14159265f);
+				}
+			}	
+		}
+	}
+    return output;                  // Return output angles
 }
+
 
 vector<Image> rotateBrushes(const Image &im, int nAngles) {
-	// helper function
-	// Returns list of nAngles images rotated by 1*2pi/nAngles
-	// // --------- HANDOUT  PS12 ------------------------------
-	return vector<Image>();
+	// helper function, Returns list of nAngles images rotated by 1*2pi/nAngles
+	// --------- HANDOUT  PS12 ------------------------------
+	vector<Image> output;
+	for (int n = nAngles; n > 0; n--) {
+		output.push_back(
+			rotate(im, 2 * 3.1415926535 / n)
+		);
+	}
+	return output; // Vector of Image objects
 }
 
-Image singleScaleOrientedPaint(const Image &im, const Image &importance,
-		const Image &out, const Image &tensor, const Image &texture,int size, int N, 
-		float noise, int nAngles) {
-	// Similar to singleScalePaintImportant but brush strokes are oriented
-	// according to tensor
-	// // --------- HANDOUT  PS12 ------------------------------
-	return Image(1,1,1);
+
+Image singleScaleOrientedPaint(const Image &im, const Image &importance, const Image &out, const Image &tensor, 
+		                       const Image &texture, int size, int N, float noise, int nAngles) {
+	// Similar to singleScalePaintImportant but brush strokes are oriented according to tensor
+	// --------- HANDOUT  PS12 ------------------------------
+	return Image(1, 1, 1);
 }
+
 
 Image orientedPaint(const Image &im, const Image &texture, int N, int size, int noise) {
 	// Similar to painterly() but strokes are oriented along the directions of maximal structure
-	// // --------- HANDOUT  PS12 ------------------------------
-	return Image(1,1,1);
-
+	// --------- HANDOUT  PS12 ------------------------------
+	return Image(1, 1, 1);
 }
-
-
-

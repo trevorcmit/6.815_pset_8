@@ -31,6 +31,7 @@ void test_brush_singleScalePaint() {
   ssp_test.write("./Output/singleScalePaint_test.png");
 }
 
+
 void test_sharpnessMap_singleScalePaintImportance() {
   Image test("./Input/villeperdue.png"); // Load input images
   Image brush_("./Input/brush.png");
@@ -41,8 +42,33 @@ void test_sharpnessMap_singleScalePaintImportance() {
 
   imp.write("./Output/sharpnessMap_test.png");
   ssp_test.write("./Output/singleScalePaintImportance_test.png");
-
 }
+
+
+void test_painterly() {
+  Image test("./Input/villeperdue.png"); // Load input images
+  Image brush_("./Input/brush.png");
+  Image paint_test = painterly(test, brush_);
+  paint_test.write("./Output/painterly_test.png");
+
+  // Image output(test.width(), test.height(), test.channels());
+	// Image first_pass = singleScalePaint(test, output, brush_);
+	// Image importance = sharpnessMap(test);
+	// Image second_pass = singleScalePaintImportance(test, importance, first_pass, brush_);
+  // Image test_sp = singleScalePaintImportance(test, importance, output, brush_);
+
+  // first_pass.write("./Output/first_pass.png");
+  // second_pass.write("./Output/second_pass.png");
+  // test_sp.write("./Output/test_sp.png");
+}
+
+
+void test_testAngle() {
+  Image round("./Input/round.png");
+  Image angles = testAngle(round);
+  angles.write("./Output/testAngle_test.png");
+}
+
 
 // This is a way for you to test your functions.
 // We will only grade the contents of npr.cpp
@@ -50,7 +76,10 @@ int main() {
   clock_t start = clock();
 
   // test_brush_singleScalePaint();
-  test_sharpnessMap_singleScalePaintImportance();
+  // test_sharpnessMap_singleScalePaintImportance();
+  // test_painterly();
+
+  test_testAngle();
   
   clock_t end = clock();
   double duration = (end - start) * 1.0f / CLOCKS_PER_SEC;
