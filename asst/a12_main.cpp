@@ -129,6 +129,7 @@ void test_orientedPaint() {
   liz_out.write("./Output/orientedPaint_liz.png");
 }
 
+
 // This is a way for you to test your functions.
 // We will only grade the contents of npr.cpp
 int main() {

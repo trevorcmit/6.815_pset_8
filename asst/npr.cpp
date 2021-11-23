@@ -191,7 +191,6 @@ Image testAngle(const Image &im, float sigmaG, float factor) {
 			float angle1 = atan2(eigenvectors(0, 1), eigenvectors(0, 0));            // Compute angle with both vectors
 			float angle2 = atan2(eigenvectors(1, 1), eigenvectors(1, 0));
 
-
 			if (abs(angle1) < abs(angle2)) {                                         // Get min angle for all channels
 				for (int c = 0; c < output.channels(); c++) {                        // Angle 1 < Angle 2 case
 					output(w, h, c) = (angle1 + 3.14159265f) / (2 * 3.14159265f);    // Scale [0,2pi] to [0,1]
