@@ -1,4 +1,4 @@
-NUMBER := 12
+NUMBER := 8
 OBJS=\
 $(BUILD_DIR)/basicImageManipulation.o \
 $(BUILD_DIR)/filtering.o \

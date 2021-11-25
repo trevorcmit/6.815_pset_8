@@ -50,16 +50,6 @@ void test_painterly() {
   Image brush_("./Input/brush.png");
   Image paint_test = painterly(test, brush_);
   paint_test.write("./Output/painterly_test.png");
-
-  // Image output(test.width(), test.height(), test.channels());
-	// Image first_pass = singleScalePaint(test, output, brush_);
-	// Image importance = sharpnessMap(test);
-	// Image second_pass = singleScalePaintImportance(test, importance, first_pass, brush_);
-  // Image test_sp = singleScalePaintImportance(test, importance, output, brush_);
-
-  // first_pass.write("./Output/first_pass.png");
-  // second_pass.write("./Output/second_pass.png");
-  // test_sp.write("./Output/test_sp.png");
 }
 
 
@@ -75,11 +65,9 @@ void test_rotateBrushes() {
 
   Image blank_1(900, 900, 3);
   vector<float> red = {1.0f, 1.0f, 0.0f};
-  // Image brush_test = brush(blank_1, 400, 400, red, brush_);
 
   vector<Image> rotations = rotateBrushes(brush_, 10);
 
-  // for (int n = 0; n < 12; n++) {
   rotations.at(0).write("./Output/rotateBrushes_test0.png");
   rotations.at(1).write("./Output/rotateBrushes_test1.png");
   rotations.at(2).write("./Output/rotateBrushes_test2.png");
@@ -90,9 +78,6 @@ void test_rotateBrushes() {
   rotations.at(7).write("./Output/rotateBrushes_test7.png");
   rotations.at(8).write("./Output/rotateBrushes_test8.png");
   rotations.at(9).write("./Output/rotateBrushes_test9.png");
-  // }
-
-  // brush_test.write("./Output/rotateBrushes_test.png");
 }
 
 
@@ -113,20 +98,24 @@ void test_orientedPaint() {
   Image china("./Input/china.png");
   Image round("./Input/round.png");
   Image archie("./Input/archie.png");
-  Image liz("./Input/liz.png");
 
   Image brush_("./Input/brush.png");
-  Image longbrush_("./Input/longBrush2.png");
+  Image longbrush_("./Input/longBrush.png");
 
-  Image china_out = orientedPaint(china, brush_, 15000, 40);
-  Image round_out = orientedPaint(round, brush_, 15000, 40);
-  Image archie_out = orientedPaint(archie, brush_, 15000, 40);
-  Image liz_out = orientedPaint(liz, longbrush_, 15000, 40);
+  Image china_out = orientedPaint(china, brush_, 11500, 50);
+  Image round_out = orientedPaint(round, longbrush_, 11500, 45);
+  Image archie_out = orientedPaint(archie, brush_, 11500, 40);
 
   china_out.write("./Output/orientedPaint_china.png");
   round_out.write("./Output/orientedPaint_round.png");
   archie_out.write("./Output/orientedPaint_archie.png");
-  liz_out.write("./Output/orientedPaint_liz.png");
+}
+
+void test_my_own_image() {
+  Image chicago("./Input/chicago.png");
+  Image brush_("./Input/brush.png");
+  Image chicago_out = orientedPaint(chicago, brush_, 11500, 50);
+  chicago_out.write("./Output/orientedPaint_chicago.png");
 }
 
 
@@ -135,13 +124,14 @@ void test_orientedPaint() {
 int main() {
   clock_t start = clock();
 
-  // test_brush_singleScalePaint();
-  // test_sharpnessMap_singleScalePaintImportance();
-  // test_painterly();
-  // test_testAngle();
-  // test_rotateBrushes();
-  // test_singleScaleOrientedPaint();
+  test_brush_singleScalePaint();
+  test_sharpnessMap_singleScalePaintImportance();
+  test_painterly();
+  test_testAngle();
+  test_rotateBrushes();
+  test_singleScaleOrientedPaint();
   test_orientedPaint();
+  test_my_own_image();
   
   clock_t end = clock();
   double duration = (end - start) * 1.0f / CLOCKS_PER_SEC;

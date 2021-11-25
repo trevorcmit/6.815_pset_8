@@ -12,10 +12,9 @@ using namespace std;
 /**************************************************************
  //                       NPR                                //
  *************************************************************/
-
 Image brush(const Image &im, int x, int y, vector<float> color, const Image &texture) {
 	// Draws a brushstroke defined by texture and color at (x,y) in im
-	// // --------- HANDOUT  PS12 ------------------------------
+	// --------- HANDOUT  PS12 ------------------------------
 	Image output = im;
 	if (((x < texture.width() / 2) || (x > im.width() - texture.width() / 2)) ||
 	    ((y < texture.height() / 2) || (y > im.height() - texture.height() / 2))) {
@@ -29,16 +28,13 @@ Image brush(const Image &im, int x, int y, vector<float> color, const Image &tex
 		for (int h = start_y; h < start_y + texture.height(); h++) {    // Iterate and make linear combination of
 			int i = 0;                                                  // original and texture image with new colors
 			for (int w = start_x; w < start_x + texture.width(); w++) {
-				for (int c = 0; c < im.channels(); c++) {
-					// if (w < 0 || w >= output.width() || h < 0 || h >= output.height()) {
-					float value =  im.smartAccessor(w, h, c) * 
-						(1 - texture.smartAccessor(i, j, c)) + color.at(c) * texture.smartAccessor(i, j, c);
-					// cout << "Calculated value..." << endl;
-					output(w, h, c) = value;
-					// cout << "Set value..." << endl;
-					// }
+				if (h >= 0 && h < im.height() && w >= 0 && w < im.width()) { // Check coordinate is in bounds
+					for (int c = 0; c < im.channels(); c++) {
+						output(w, h, c) = im.smartAccessor(w, h, c, true) * 
+							(1 - texture.smartAccessor(i, j, 0, true)) + color.at(c) * texture.smartAccessor(i, j, 0, true);
+					}
+					i += 1; // Iterate i,j values as indices for texture image
 				}
-				i += 1; // Iterate i,j values as indices for texture image
 			}
 			j += 1;
 		}
@@ -49,18 +45,19 @@ Image brush(const Image &im, int x, int y, vector<float> color, const Image &tex
 
 Image singleScalePaint(const Image &im, const Image &out, const Image &texture, int size, int N, float noise) {
 	// Create painted rendering by splatting brushstrokes at N random locations in your output image
-	// // --------- HANDOUT  PS12 ------------------------------
+	// --------- HANDOUT  PS12 ------------------------------
 	Image output = out;
 	float k = static_cast<float>(size) / static_cast<float>(texture.width()); // Static cast to get float types
-	Image texture_s = scaleLin(texture, k); // Scale brush by size
+	Image texture_s = scaleLin(texture, k);                                   // Scale brush by size
 
 	for (int n = 0; n < N; n++) {
 		int random_x = rand() % output.width(); // Use modulo on rand to get random coordinates for brush strokes
 		int random_y = rand() % output.height();
 		float noise = 1 - noise / (2 + noise * rand());
-		vector<float> color = {im(random_x, random_y, 0) * noise, // Make color vector based on original image
-					           im(random_x, random_y, 1) * noise,
-		                       im(random_x, random_y, 2) * noise,
+		vector<float> color = {
+			im(random_x, random_y, 0) * noise,  // Make color vector based on original image
+			im(random_x, random_y, 1) * noise,
+		    im(random_x, random_y, 2) * noise,
 		};
 		output = brush(output, random_x, random_y, color, texture_s); // Repeated brush cycles and replace output
 	}
@@ -69,9 +66,9 @@ Image singleScalePaint(const Image &im, const Image &out, const Image &texture, 
 
 
 Image singleScalePaintImportance(const Image &im, const Image &importance,
-						const Image &out, const Image &texture, int size, int N, float noise) {
+								 const Image &out, const Image &texture, int size, int N, float noise) {
 	// Create painted rendering but vary the density of the strokes according to an importance map
-	// // --------- HANDOUT  PS12 ------------------------------
+	// --------- HANDOUT  PS12 ------------------------------
 	Image output = out;
 	float k = static_cast<float>(size) / static_cast<float>(texture.width()); // Static cast to get float types
 	Image texture_s = scaleLin(texture, k); // Scale brush by size
@@ -84,9 +81,10 @@ Image singleScalePaintImportance(const Image &im, const Image &importance,
 		float prob = static_cast<float>(rand() % 100) / 100.0f; // Get probability 
 		if (prob < importance(random_x, random_y, 0)) {
 			float noise = 1 - noise / (2 + noise * rand());
-			vector<float> color = {im(random_x, random_y, 0) * noise, // Make color vector based on original image
-					               im(random_x, random_y, 1) * noise,
-		                           im(random_x, random_y, 2) * noise,
+			vector<float> color = {
+				im(random_x, random_y, 0) * noise, // Make color vector based on original image
+				im(random_x, random_y, 1) * noise,
+		    	im(random_x, random_y, 2) * noise,
 			};
 			output = brush(output, random_x, random_y, color, texture_s); // Repeated brush cycles and replace output
 			num_brush += 1;
@@ -115,7 +113,7 @@ Image painterly(const Image &im, const Image &texture, int N, int size, int nois
 	Image output(im.width(), im.height(), im.channels());
 	Image first_pass = singleScalePaint(im, output, texture, size, N, noise); // First pass large strokes
 	Image importance = sharpnessMap(im);
-	Image second_pass = singleScalePaintImportance(im, importance, first_pass, texture, 10, N, noise); // Small strokes
+	Image second_pass = singleScalePaintImportance(im, importance, first_pass, texture, int(size/4), N, noise); // Small strokes
 	return second_pass;
 }
 
@@ -157,7 +155,7 @@ Image gradientY(const Image &im, bool clamp) { // Helper function taken from PS0
 
 Image computeTensor(const Image &im, float sigmaG, float factorSigma) {
  	// Compute xx/xy/yy Tensor of an image. (stored in that order)
- 	// //\\ --------- HANDOUT  PS07 ------------------------------
+ 	// --------- HANDOUT  PS07 ------------------------------
  	vector<Image> lumi_chromi = lumiChromi(im); // Get luminance/chrominance of input image
   	Image blur_lumi = gaussianBlur_separable(lumi_chromi.at(0), sigmaG); // Do 2D Gaussian Blue
   	Image blur_lumi_gradX = gradientX(blur_lumi, true);
@@ -189,9 +187,9 @@ Image testAngle(const Image &im, float sigmaG, float factor) {
 			eigensolver.compute(I);
 			Matrix eigenvectors = eigensolver.eigenvectors().real();                 // Get real part of eigenvectors
 			float angle1 = atan2(eigenvectors(0, 1), eigenvectors(0, 0));            // Compute angle with both vectors
-			float angle2 = atan2(eigenvectors(1, 1), eigenvectors(1, 0));
+			float angle2 = atan2(eigenvectors(1, 1), eigenvectors(1, 0));            // y_2', x_2'
 
-			if (abs(angle1) < abs(angle2)) {                                         // Get min angle for all channels
+			if (eigensolver.eigenvalues()(0).real() < eigensolver.eigenvalues()(1).real()) {// Get min angle for all channels
 				for (int c = 0; c < output.channels(); c++) {                        // Angle 1 < Angle 2 case
 					output(w, h, c) = (angle1 + 3.14159265f) / (2 * 3.14159265f);    // Scale [0,2pi] to [0,1]
 				}
@@ -233,7 +231,7 @@ Image singleScaleOrientedPaint(const Image &im, const Image &importance, const I
 	for (int j = 0; j < nAngles; j++) {
 		angles.push_back(static_cast<float>(j) * 2.0f * 3.14159265f / static_cast<float>(nAngles));
 	}
-	vector<Image> brushes = rotateBrushes(texture_s, nAngles);                  // Get all brush rotations
+	vector<Image> brushes = rotateBrushes(texture_s, nAngles);                // Get all brush rotations
 
 	while (num_brush < N) {
 		int random_x = rand() % output.width();                               // Get random coordinates for brush stroke
@@ -241,24 +239,24 @@ Image singleScaleOrientedPaint(const Image &im, const Image &importance, const I
 
 		float prob = static_cast<float>(rand() % 100) / 100.0f;               // Get probability 
 		if (prob < importance(random_x, random_y, 0)) {
-			float angle = 2.0f * 3.14159265f * tensor(random_x, random_y, 0) + 3.14159265f/2.0f; // Get angle at coordinate
-			float dist = abs(angle - angles.at(0));                             // Set temporary closest angle
+			float angle = 2.0f * 3.14159265f * tensor(random_x, random_y, 0); // Get angle at coordinate
+			float dist = abs(angle - angles.at(0));                           // Set temporary closest angle
 			int index = 0;
 			for (int i = 1; i < nAngles; i++) {                               // Check all possible angles
-				float temp_dist = abs(angle - angles.at(i));                    // Store and keep index of nearest angle  
+				float temp_dist = abs(angle - angles.at(i));                  // Store and keep index of nearest angle  
 				if (temp_dist < dist) {
 					index = i;
 					dist = temp_dist;
 				}
 			}                                                                 // After for loop, now have closest angle
 
-			// cout << index << endl;
 			float noise = 1 - noise / (2 + noise * rand());
 			vector<float> color = {
 				im(random_x, random_y, 0) * noise,                            // Make color vector based on original image
 				im(random_x, random_y, 1) * noise,
 		        im(random_x, random_y, 2) * noise,
 			};
+
 			output = brush(output, random_x, random_y, color, brushes.at(index)); // Use rotated brush
 			num_brush += 1;
 		}
@@ -270,13 +268,13 @@ Image singleScaleOrientedPaint(const Image &im, const Image &importance, const I
 Image orientedPaint(const Image &im, const Image &texture, int N, int size, int noise) {
 	// Similar to painterly() but strokes are oriented along the directions of maximal structure
 	// --------- HANDOUT  PS12 ------------------------------
-	Image output(im.width(), im.height(), im.channels());
-	Image equal(im.width(), im.height(), 1);
+	Image output(im.width(), im.height(), im.channels());  // Initialize output image
+	Image equal(im.width(), im.height(), 1);               // Make importance map that is equal everywhere
 	equal.set_color(1.0f);
-	Image tensor = testAngle(im);
-	Image importance = sharpnessMap(im);
+	Image tensor = testAngle(im);                          // Get tensors to reference in SSOP call                          
+	Image importance = sharpnessMap(im);                   // Get importance to reference in SSOP 2nd Pass
 
 	Image first_pass = singleScaleOrientedPaint(im, equal, output, tensor, texture, size, N, noise);
-	Image second_pass = singleScaleOrientedPaint(im, importance, first_pass, tensor, texture, 10, N, noise);
+	Image second_pass = singleScaleOrientedPaint(im, importance, first_pass, tensor, texture, int(size/4), N, noise);
 	return second_pass;
 }
